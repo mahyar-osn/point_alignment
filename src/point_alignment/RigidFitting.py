@@ -19,14 +19,14 @@ class Rigid_Registration(Optimization):
         muY = np.divide(np.sum(np.dot(np.transpose(self.P), self.Y), axis=0), self.Np)
 
         self.XX = self.X - np.tile(muX, (self.N, 1))
-        YY      = self.Y - np.tile(muY, (self.M, 1))
+        YY = self.Y - np.tile(muY, (self.M, 1))
 
         self.A = np.dot(np.transpose(self.XX), np.transpose(self.P))
         self.A = np.dot(self.A, YY)
 
         U, _, V = np.linalg.svd(self.A, full_matrices=True)
-        C = np.ones((self.D, ))
-        C[self.D-1] = np.linalg.det(np.dot(U, V))
+        C = np.ones((self.D,))
+        C[self.D - 1] = np.linalg.det(np.dot(U, V))
 
         self.R = np.transpose(np.dot(np.dot(U, np.diag(C)), V))
         self.YPY = np.dot(np.transpose(self.P1), np.sum(np.multiply(YY, YY), axis=1))
@@ -44,8 +44,9 @@ class Rigid_Registration(Optimization):
         qprev = self.q
 
         trAR = np.trace(np.dot(self.A, self.R))
-        xPx = np.dot(np.transpose(self.Pt1), np.sum(np.multiply(self.XX, self.XX), axis =1))
-        self.q = (xPx - 2 * self.s * trAR + self.s * self.s * self.YPY) / (2 * self.sigma2) + self.D * self.Np/2 * np.log(self.sigma2)
+        xPx = np.dot(np.transpose(self.Pt1), np.sum(np.multiply(self.XX, self.XX), axis=1))
+        self.q = (xPx - 2 * self.s * trAR + self.s * self.s * self.YPY) / (
+                    2 * self.sigma2) + self.D * self.Np / 2 * np.log(self.sigma2)
         self.err = np.abs(self.q - qprev)
         self.sigma2 = (xPx - self.s * trAR) / (self.Np * self.D)
         if self.sigma2 <= 0:
