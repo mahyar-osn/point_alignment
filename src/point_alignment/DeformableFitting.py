@@ -1,5 +1,5 @@
 import numpy as np
-from .Optimization import Optimization
+from Optimization import Optimization
 
 
 def gaussian_kernel(Y, beta):
@@ -16,7 +16,7 @@ def gaussian_kernel(Y, beta):
 
 class Deformable_Registration(Optimization):
     def __init__(self, alpha=2, beta=2, *args, **kwargs):
-        super(Deformable_Registration).__init__(*args, **kwargs)
+        super(Deformable_Registration, self).__init__(*args, **kwargs)
         self.alpha = 2 if alpha is None else alpha
         self.beta = 2 if alpha is None else beta
         self.W = np.zeros((self.M, self.D))
