@@ -1,12 +1,12 @@
 import numpy as np
-from Optimization import Optimization
+from .Optimization import Optimization
 
 
-class RigidFitting(Optimization):
+class Rigid_Registration(Optimization):
     def __init__(self, R=None, t=None, s=None, *args, **kwargs):
-        super(RigidFitting, self).__init__(*args, **kwargs)
+        super(Rigid_Registration).__init__(*args, **kwargs)
         if self.D != 2 and self.D != 3:
-            message = 'Rigid registration only supports 2D or 3D. Instead got {}.'.format(self.D)
+            message = 'Rigid registration only supports 2D or 3D point clouds. Instead got {}.'.format(self.D)
             raise ValueError(message)
         if s == 0:
             raise ValueError('A zero scale factor is not supported.')
@@ -19,38 +19,37 @@ class RigidFitting(Optimization):
         muY = np.divide(np.sum(np.dot(np.transpose(self.P), self.Y), axis=0), self.Np)
 
         self.XX = self.X - np.tile(muX, (self.N, 1))
-        YY = self.Y - np.tile(muY, (self.M, 1))
+        YY      = self.Y - np.tile(muY, (self.M, 1))
 
         self.A = np.dot(np.transpose(self.XX), np.transpose(self.P))
         self.A = np.dot(self.A, YY)
 
         U, _, V = np.linalg.svd(self.A, full_matrices=True)
-        C = np.ones((self.D,))
-        C[self.D - 1] = np.linalg.det(np.dot(U, V))
+        C = np.ones((self.D, ))
+        C[self.D-1] = np.linalg.det(np.dot(U, V))
 
-        self.R = np.dot(np.dot(U, np.diag(C)), V)
+        self.R = np.transpose(np.dot(np.dot(U, np.diag(C)), V))
         self.YPY = np.dot(np.transpose(self.P1), np.sum(np.multiply(YY, YY), axis=1))
-        self.s = np.trace(np.dot(np.transpose(self.A), self.R)) / self.YPY
-        self.t = np.transpose(muX) - self.s * np.dot(self.R, np.transpose(muY))
+        self.s = np.trace(np.dot(np.transpose(self.A), np.transpose(self.R))) / self.YPY
+        self.t = np.transpose(muX) - self.s * np.dot(np.transpose(self.R), np.transpose(muY))
 
-    def transform_scaffold(self, Y=None):
+    def transform_point_cloud(self, Y=None):
         if Y is None:
-            self.TY = self.s * np.dot(self.Y, np.transpose(self.R)) + np.tile(self.t, (self.M, 1))
+            self.TY = self.s * np.dot(self.Y, self.R) + self.t
             return
         else:
-            return self.s * np.dot(Y, np.transpose(self.R)) + np.tile(np.transpose(self.t), (Y.shape[0], 1))
+            return self.s * np.dot(Y, self.R) + self.t
 
     def update_variance(self):
         qprev = self.q
 
-        trAR = np.trace(np.dot(self.A, np.transpose(self.R)))
-        xPx = np.dot(np.transpose(self.Pt1), np.sum(np.multiply(self.XX, self.XX), axis=1))
-        self.q = (xPx - 2 * self.s * trAR + self.s * self.s * self.YPY) / (
-                    2 * self.sigma2) + self.D * self.Np / 2 * np.log(self.sigma2)
+        trAR = np.trace(np.dot(self.A, self.R))
+        xPx = np.dot(np.transpose(self.Pt1), np.sum(np.multiply(self.XX, self.XX), axis =1))
+        self.q = (xPx - 2 * self.s * trAR + self.s * self.s * self.YPY) / (2 * self.sigma2) + self.D * self.Np/2 * np.log(self.sigma2)
         self.err = np.abs(self.q - qprev)
         self.sigma2 = (xPx - self.s * trAR) / (self.Np * self.D)
         if self.sigma2 <= 0:
             self.sigma2 = self.tolerance / 10
 
-    def get_fitting_parameters(self):
+    def get_registration_parameters(self):
         return self.s, self.R, self.t
