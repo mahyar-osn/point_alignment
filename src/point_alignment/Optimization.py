@@ -1,34 +1,26 @@
 import numpy as np
-from Tools import Tools
+
+
+def initialize_sigma2(X, Y):
+    (N, D) = X.shape
+    (M, _) = Y.shape
+    XX = np.reshape(X, (1, N, D))
+    YY = np.reshape(Y, (M, 1, D))
+    XX = np.tile(XX, (M, 1, 1))
+    YY = np.tile(YY, (1, N, 1))
+    diff = XX - YY
+    err = np.multiply(diff, diff)
+    return np.sum(err) / (D * M * N)
 
 
 class Optimization(object):
-    """
-    This is the Expectation Maximization algorithm class to compute the fitting parameters.
-    The idea of this algorithm is first to guess the values of parameters, and then use the Bayes' theorem
-    to compute the posterior probability distributions P(m|x_n) of mixture components, which is the
-    expectation of the algorithm. The updated parameter values are then found by minimizing the expectation og
-    the negative log likelihood function.
-    """
     def __init__(self, X, Y, sigma2=None, max_iterations=100, tolerance=0.001, w=0, *args, **kwargs):
-        """
-
-        :param X: The first point set (the fiducial landmarks from the heart image).
-        :param Y: The second point set (the material points fron the scaffold).
-        :param sigma2: Isotropic covariance - must be initialized.
-        :param max_iterations: Maximum fitting iterations.
-        :param tolerance: Error tolerance.
-        :param w: The weight of the uniform distribution. must be 0 =< w >= 1.
-        :param args:
-        :param kwargs:
-        """
-
         if type(X) is not np.ndarray or X.ndim != 2:
-            raise ValueError("Fiducial landmarks must be a numpy array with at least 2 dimensions.")
+            raise ValueError("The target point cloud (X) must be at a 2D numpy array.")
         if type(Y) is not np.ndarray or Y.ndim != 2:
-            raise ValueError("Scaffold must be a numpy array with at least 2 dimensions.")
+            raise ValueError("The source point cloud (Y) must be a 2D numpy array.")
         if X.shape[1] != Y.shape[1]:
-            raise ValueError("Scaffold and fiducial landmarks must have the same dimension.")
+            raise ValueError("Both point clouds need to have the same number of dimensions.")
 
         self.X = X
         self.Y = Y
@@ -44,13 +36,11 @@ class Optimization(object):
         self.Pt1 = np.zeros((self.N,))
         self.P1 = np.zeros((self.M,))
         self.Np = 0
-        self.q = None
-        self.tools = Tools()
 
-    def fit(self, callback=lambda **kwargs: None):
-        self.transform_scaffold()
+    def register(self, callback=lambda **kwargs: None):
+        self.transform_point_cloud()
         if self.sigma2 is None:
-            self.sigma2 = self.tools.initialize_sigma2(self.X, self.TY)
+            self.sigma2 = initialize_sigma2(self.X, self.TY)
         self.q = -self.err - self.N * self.D / 2 * np.log(self.sigma2)
         while self.iteration < self.max_iterations and self.err > self.tolerance:
             self.iterate()
@@ -58,11 +48,10 @@ class Optimization(object):
                 kwargs = {'iteration': self.iteration, 'error': self.err, 'X': self.X, 'Y': self.TY}
                 callback(**kwargs)
 
-        return self.TY, self.get_fitting_parameters()
+        return self.TY, self.get_registration_parameters()
 
-    def get_fitting_parameters(self):
-        raise NotImplementedError("Fitting parameters should be defined in child classes"
-                                  "i.e. RigidFitting or DeformableFitting.")
+    def get_registration_parameters(self):
+        raise NotImplementedError("Registration parameters should be defined in child classes.")
 
     def iterate(self):
         self.expectation()
@@ -94,5 +83,5 @@ class Optimization(object):
 
     def maximization(self):
         self.update_transform()
-        self.transform_scaffold()
+        self.transform_point_cloud()
         self.update_variance()
